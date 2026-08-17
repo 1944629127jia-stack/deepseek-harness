@@ -13,12 +13,18 @@ import type { Win32DialogWorkerData, Win32DialogWorkerMessage } from './win32-di
 export interface Win32DialogWorkerLike {
   /**
    * Subscribe to a child-process event.
-   * @param event - `message`, `error`, or `exit`.
+   * @param event - `message` or `error`.
    * @param listener - the event consumer.
    */
   on(event: 'message', listener: (message: Win32DialogWorkerMessage) => void): unknown
   on(event: 'error', listener: (error: Error) => void): unknown
-  on(event: 'exit', listener: (code: number) => void): unknown
+  /**
+   * Subscribe to the child's termination. Node guarantees exactly one of
+   * `code`/`signal` is non-null; a signal death carries no exit code.
+   * @param event - `exit`.
+   * @param listener - the event consumer.
+   */
+  on(event: 'exit', listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown
   /**
    * Force-stop the child; the abort path's last resort when `WM_CLOSE`
    * never lands (e.g. the dialog window was never created).
@@ -30,6 +36,14 @@ export interface Win32DialogWorkerLike {
    * child stuck in the native modal call never blocks process exit.
    */
   unref?(): void
+  /**
+   * The worker's trailing stderr, when the spawner captured it; reported in
+   * the exit diagnostic so a worker that dies before any IPC result (module
+   * load crash, native fault, external kill) can be diagnosed from the
+   * thrown error alone.
+   * @returns the captured stderr tail, trimmed.
+   */
+  stderrTail?(): string
 }
 
 /** Injectable process surface for deterministic driver tests. */
@@ -150,9 +164,16 @@ export async function pickWin32Directory(
         reject(error)
       })
     })
-    worker.on('exit', () => {
+    worker.on('exit', (code, signal) => {
       settle(() => {
-        reject(new Error('win32 folder dialog worker exited before reporting a result'))
+        // Fatal NTSTATUS codes (0xC0000005 access violation etc.) exceed
+        // 255, so large codes get a hex rendering too.
+        const status = code !== null
+          ? `exit code ${code}${code > 0xff ? ` (0x${code.toString(16)})` : ''}`
+          : `signal ${String(signal)}`
+        const stderr = worker.stderrTail?.()
+        const detail = stderr !== undefined && stderr !== '' ? `; stderr: ${stderr}` : ''
+        reject(new Error(`win32 folder dialog worker exited before reporting a result (${status}${detail})`))
       })
     })
   })

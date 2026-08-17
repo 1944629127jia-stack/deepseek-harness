@@ -16,29 +16,33 @@ import type { Win32DialogBindings, Win32FolderDialog } from './win32-dialog-logi
 
 interface KoffiFunction { (...args: unknown[]): unknown }
 interface KoffiLibrary { func(convention: string, name: string, result: string, args: string[]): KoffiFunction }
+interface KoffiDecode {
+  (value: unknown, offsetOrType: unknown, type?: unknown): unknown
+  /** Read the NUL-terminated wide string at `ptr` (koffi 3.1+). */
+  wstring(ptr: unknown, length?: number | bigint): string
+}
 interface Koffi {
   load(path: string): KoffiLibrary
   proto(declaration: string): unknown
   pointer(type: unknown): unknown
   call(pointer: unknown, proto: unknown, ...args: unknown[]): unknown
-  decode(value: unknown, offsetOrType: unknown, type?: unknown): unknown
+  decode: KoffiDecode
   register(fn: (...args: unknown[]) => unknown, type: unknown): unknown
   unregister(callback: unknown): void
   sizeof(type: string): number
-  view(ref: unknown, len: number): ArrayBuffer
 }
 
 /**
  * Read a NUL-terminated UTF-16 string at a native address. koffi's
  * `_Out_ void **` out-params surface a raw address, and
  * `koffi.decode(addr, 'str16')` would dereference it as a pointer — crash
- * on real Windows — so view the memory directly instead.
+ * on real Windows. Viewing the memory (`koffi.view`) aborts the process
+ * outright under the packaged desktop runtime (Electron 39's embedded Node
+ * 22: FATAL ERROR `Error::New napi_get_last_error_info`), so read through
+ * the wstring decoder, which is verified on that runtime and on Node 24.
  */
 function readUtf16(koffi: Koffi, address: unknown): string {
-  const bytes = Buffer.from(koffi.view(address, 32768))
-  let end = 0
-  while (end + 1 < bytes.length && bytes[end] !== 0) end += 2
-  return bytes.toString('utf16le', 0, end)
+  return koffi.decode.wstring(address)
 }
 
 const COINIT_APARTMENTTHREADED = 0x2

@@ -13,6 +13,7 @@ import type { Win32DialogWorkerMessage } from '../src/win32-dialog-worker.ts'
 
 class FakeWorker extends EventEmitter implements Win32DialogWorkerLike {
   kill = vi.fn(() => true)
+  stderrTail?: () => string
   post(message: Win32DialogWorkerMessage): void {
     this.emit('message', message)
   }
@@ -69,15 +70,37 @@ describe('pickWin32Directory', () => {
 
     const silent = harness()
     const exiting = pickWin32Directory(live(), silent.internals)
-    silent.worker.emit('exit', 0)
-    await expect(exiting).rejects.toThrow('exited before reporting a result')
+    silent.worker.emit('exit', 0, null)
+    await expect(exiting).rejects.toThrow('exited before reporting a result (exit code 0)')
+  })
+
+  it('reports the exit status and captured stderr of a dying worker', async () => {
+    // A signal death names the signal and appends the captured stderr tail.
+    const killed = harness()
+    killed.worker.stderrTail = () => 'FATAL native crash'
+    const dying = pickWin32Directory(live(), killed.internals)
+    killed.worker.emit('exit', null, 'SIGKILL')
+    await expect(dying).rejects.toThrow('exited before reporting a result (signal SIGKILL; stderr: FATAL native crash)')
+
+    // Fatal NTSTATUS codes exceed 255 and render in hex too.
+    const faulted = harness()
+    const crashing = pickWin32Directory(live(), faulted.internals)
+    faulted.worker.emit('exit', 3221225477, null)
+    await expect(crashing).rejects.toThrow('exited before reporting a result (exit code 3221225477 (0xc0000005))')
+
+    // An empty captured tail adds nothing to the message.
+    const quiet = harness()
+    quiet.worker.stderrTail = () => ''
+    const exiting = pickWin32Directory(live(), quiet.internals)
+    quiet.worker.emit('exit', 0, null)
+    await expect(exiting).rejects.toThrow('exited before reporting a result (exit code 0)')
   })
 
   it('settles once: a late exit after the result is inert', async () => {
     const { worker, internals } = harness()
     const picked = pickWin32Directory(live(), internals)
     worker.post({ kind: 'done', path: 'C:\\once' })
-    worker.emit('exit', 0)
+    worker.emit('exit', 0, null)
     await expect(picked).resolves.toBe('C:\\once')
   })
 
