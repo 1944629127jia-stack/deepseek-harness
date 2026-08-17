@@ -37,7 +37,7 @@ import { assertNever } from '@deepseek-ai/dsh-llm'
 import { SandboxProvider, SandboxUnavailableError } from '@deepseek-ai/dsh-sandbox'
 import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import type { SessionId } from '@deepseek-ai/dsh-session'
-import { AclWriteGrant, assertTempRootOutsideWorkspace, tempWriteSid, workspaceWriteSid } from '@deepseek-ai/dsh-sandbox-windows-acl'
+import { AclWriteGrant, assertTempRootOutsideWorkspace, ensureHostConsole, tempWriteSid, workspaceWriteSid } from '@deepseek-ai/dsh-sandbox-windows-acl'
 import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from './profiles.ts'
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -131,6 +131,12 @@ export interface SandboxInternals {
   windowsAclRunnerArgs?: string[]
   /** Replaces the resolved windows-acl runner built entry path (a fake lib/runner.js location). */
   windowsAclRunnerEntry?: string
+  /**
+   * Replaces the windows-acl host-console accommodation (a spy observes the
+   * call without allocating a console in the test host). The real
+   * implementation runs only on win32.
+   */
+  ensureConsole?: () => boolean
   /** Replaces the functional windows-acl probe (the win32 chain's sole rung — only consulted if that chain ever grows). */
   probeWindowsAcl?: () => boolean
   /** Replaces the private-temp-directory removal at provider dispose (a throwing fake exercises the cleanup-failure path). */
@@ -356,6 +362,12 @@ export class LocalSandboxProvider extends SandboxProvider {
    * @returns the runner invocation.
    */
   private windowsAclRunnerArgv(policy: SandboxPolicy): string[] {
+    // A console-less host (the desktop shell) must own a console before any
+    // confined spawn: the child inherits the host's console attachment and
+    // every other console path dies at process initialization under the
+    // restricted token (see ensureHostConsole). Best-effort accommodation —
+    // the return value only reports a host that refused to allocate.
+    this.ensureHostConsole()
     const sessionId = policy.sessionId
     if (sessionId === undefined || policy.mode === 'read-only') {
       return [
@@ -561,6 +573,12 @@ export class LocalSandboxProvider extends SandboxProvider {
     if (existsSync(builtEntry)) return [process.execPath, builtEntry]
     const sourceEntry = fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-sandbox-windows-acl/src/runner.ts'))
     return [process.execPath, '--import', 'tsx/esm', sourceEntry]
+  }
+
+  /** The host-console accommodation for the windows-acl rung (test hook over the real FFI; win32 only). */
+  private ensureHostConsole(): void {
+    const ensure = this.internals.ensureConsole ?? ((): boolean => process.platform === 'win32' ? ensureHostConsole() : true)
+    ensure()
   }
 }
 

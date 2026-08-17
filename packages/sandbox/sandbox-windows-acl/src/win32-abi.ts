@@ -17,9 +17,17 @@
  *    correct WinConsoleLogonSid does produce a valid S-1-2-1, but the child
  *    then still dies with STATUS_DLL_INIT_FAILED (0xC0000142) whenever
  *    CREATE_NO_WINDOW / CREATE_NEW_CONSOLE is used.
- *  - Console isolation: under this restriction scheme a hidden console is not
- *    attainable, so children share the host console (stdio redirection is
- *    pipe-based and unaffected).
+ *  - Console handling: children INHERIT the host console (the verified CLI
+ *    shape; CREATE_NO_WINDOW / CREATE_NEW_CONSOLE die during DLL
+ *    initialization with STATUS_DLL_INIT_FAILED). A host WITHOUT a console
+ *    (the packaged desktop shell) is a hard requirement boundary: there,
+ *    every confined child whose process initialization must create its own
+ *    console connection dies the same way inside KernelBase's
+ *    DLL_PROCESS_ATTACH, while DETACHED_PROCESS children start but CUI tools
+ *    exit vacuously (PowerShell runs no command without a console). The only
+ *    workable console-less shape is giving the host itself a console — see
+ *    console.ts (`ensureHostConsole`), verified end-to-end against the
+ *    packaged desktop shell.
  * @module @deepseek-ai/dsh-sandbox-windows-acl/win32-abi
  */
 
@@ -149,6 +157,10 @@ export const MAX_PATH = 260
 // assign it to the kill-on-close job before any of its code runs.
 /** CREATE_SUSPENDED: create the child with its primary thread suspended until ResumeThread. */
 export const CREATE_SUSPENDED = 0x4
+// winuser.h line ~3404: the hide command ensureHostConsole applies to the
+// console it allocates for a console-less host (see console.ts).
+/** SW_HIDE: ShowWindow command hiding the window. */
+export const SW_HIDE = 0
 // winbase.h lines ~497-499: GetStdHandle selectors.
 /** STD_INPUT_HANDLE: GetStdHandle selector for the standard input. */
 export const STD_INPUT_HANDLE = -10

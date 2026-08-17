@@ -450,4 +450,21 @@ describe('the windows-acl probe (runner invocation contract)', () => {
     const confined = sandbox.confine(['true'], RO)
     expect(confined.argv.slice(0, 2)).toEqual([process.execPath, builtEntry])
   })
+
+  it('applies the host-console accommodation on every windows-acl wrap', async () => {
+    // The confined child inherits the HOST's console attachment, so a
+    // console-less host (the desktop shell) must be given one before its
+    // first confined spawn; the spy pins that every wrap applies the
+    // accommodation without the test host allocating a real console.
+    const ensureConsole = vi.fn(() => true)
+    const { sandbox } = await setup({}, {
+      chain: ['windows-acl', 'bwrap'],
+      probeWindowsAcl: () => true,
+      ensureConsole,
+    })
+    sandbox.confine(['true'], RO)
+    expect(ensureConsole).toHaveBeenCalledTimes(1)
+    sandbox.confine(['true'], WW)
+    expect(ensureConsole).toHaveBeenCalledTimes(2)
+  })
 })

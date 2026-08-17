@@ -133,6 +133,12 @@ export interface Win32Bindings {
   // runner can clean up grants after the child exits.
   setConsoleCtrlHandler(handler: null, add: number): number
   getStdHandle(stdHandle: number): NativePtr
+  /** NULL when this process has no console (the console-less-host probe in {@link import('./console.ts').ensureHostConsole}). */
+  getConsoleWindow(): NativePtr
+  /** Attach this process to a new console (0 on failure); the console-less-host accommodation. */
+  allocConsole(): number
+  /** ShowWindow from user32: hides the freshly allocated console window (SW_HIDE). */
+  showWindow(window: NativePtr, command: number): number
 }
 
 const PVOID: Ptr = koffi.pointer('void')
@@ -374,6 +380,7 @@ function bindings(): Win32Bindings {
   if (cached !== undefined) return cached
   const kernel32 = koffi.load('kernel32.dll')
   const advapi32 = koffi.load('advapi32.dll')
+  const user32 = koffi.load('user32.dll')
 
   // Each binding shape is verified by verify/abi-probe.cpp against the real
   // Windows headers and exercised end-to-end by tests/probe.spec.ts; the
@@ -427,6 +434,9 @@ function bindings(): Win32Bindings {
     terminateProcess: bind(kernel32, 'TerminateProcess', 'int', [PVOID, 'uint32']),
     setConsoleCtrlHandler: bind(kernel32, 'SetConsoleCtrlHandler', 'int', [PVOID, 'int']),
     getStdHandle: bind(kernel32, 'GetStdHandle', PVOID, ['int']),
+    getConsoleWindow: bind(kernel32, 'GetConsoleWindow', PVOID, []),
+    allocConsole: bind(kernel32, 'AllocConsole', 'int', []),
+    showWindow: bind(user32, 'ShowWindow', 'int', [PVOID, 'int']),
   } as unknown as Win32Bindings
   return cached
 }

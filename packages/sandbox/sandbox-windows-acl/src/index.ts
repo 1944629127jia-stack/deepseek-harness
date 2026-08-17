@@ -25,7 +25,10 @@
  *    (WRITE_RESTRICTED intersects only write accesses);
  *  - console isolation is unavailable — children share the host console
  *    (CREATE_NO_WINDOW / CREATE_NEW_CONSOLE children die with
- *    STATUS_DLL_INIT_FAILED under the restriction);
+ *    STATUS_DLL_INIT_FAILED under the restriction), and a console-less host
+ *    must first acquire one through `ensureHostConsole` (console.ts): there
+ *    every console-creating child dies the same way, and a DETACHED_PROCESS
+ *    CUI child starts but runs no command;
  *  - the private temp directory and every writable directory must be owned by the
  *    caller (owner-implicit WRITE_DAC);
  *  - grants are standing ACE mutations on real directories. WORKSPACE grants
@@ -56,6 +59,7 @@ export { quoteArg } from './spawn.ts'
 export { AclWriteGrant } from './grant.ts'
 export { assertTempRootOutsideWorkspace } from './path-boundary.ts'
 export { tempWriteSid, workspaceWriteSid } from './workspace-sid.ts'
+export { ensureHostConsole } from './console.ts'
 export { Win32Error } from './errors.ts'
 
 /** Construction options: the workspace/temp allowlists and their distinct SID identities. */

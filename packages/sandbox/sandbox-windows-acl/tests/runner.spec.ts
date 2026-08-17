@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
@@ -432,6 +432,41 @@ describe.skipIf(!isWin32 || !pwshAvailable())('windows-acl runner', () => {
     ])
     expect(result.status, `stderr: ${result.stderr}`).toBe(0)
     expect(readFileSync(externalFile, 'utf8')).toBe('mutated')
+  }, 30_000)
+
+  it('console-less host: ensureHostConsole gives the runner a console and the confined child attaches', () => {
+    // The packaged desktop shell has no console; every confined child whose
+    // initialization must create its own console connection died inside
+    // KernelBase's DLL_PROCESS_ATTACH there (0xC0000142), while children
+    // inheriting an existing console initialize normally. A wrapper entry
+    // frees its console BEFORE loading the runner and then applies the
+    // host-console accommodation, reproducing the desktop shell's host shape
+    // from any terminal. The child must both survive AND produce real output
+    // (a DETACHED_PROCESS child exits 0 vacuously — the false positive this
+    // test exists to rule out).
+    const wrapper = join(scratchRoot, 'console-less-entry.mts')
+    writeFileSync(wrapper, [
+      `import koffi from ${JSON.stringify(import.meta.resolve('koffi'))}`,
+      'koffi.load(\'kernel32.dll\').func(\'FreeConsole\', \'int\', [])()',
+      `const { ensureHostConsole } = await import(${JSON.stringify(pathToFileURL(fileURLToPath(new URL('../src/console.ts', import.meta.url))).href)})`,
+      `const { win32Sync } = await import(${JSON.stringify(pathToFileURL(fileURLToPath(new URL('../src/ffi.ts', import.meta.url))).href)})`,
+      'ensureHostConsole(win32Sync())',
+      `await import(${JSON.stringify(pathToFileURL(runnerEntry).href)})`,
+      'export {}',
+    ].join('\n'))
+    const probe = [
+      "$ErrorActionPreference='SilentlyContinue';",
+      '\'CONSOLE-LESS: OK\';',
+      `try{Set-Content -Path '${writableDir}\\console-less.txt' -Value ok -ErrorAction Stop;'CONSOLE-LESS-WRITE: OK'}catch{'CONSOLE-LESS-WRITE: DENIED'}`,
+    ].join('')
+    const result = spawnSync(process.execPath, ['--import', 'tsx/esm', wrapper,
+      '--workspace', writableDir, '--temp', isolatedTemp, '--mode', 'workspace-write',
+      '--', resolvePwshPath(), '/NoLogo', '/NonInteractive', '/NoProfile', '/Command', probe,
+    ], { timeout: 30_000, encoding: 'utf8' })
+    expect(result.status, `stderr: ${result.stderr}`).toBe(0)
+    expect(result.stdout).toContain('CONSOLE-LESS: OK')
+    expect(result.stdout).toContain('CONSOLE-LESS-WRITE: OK')
+    expect(existsSync(join(writableDir, 'console-less.txt'))).toBe(true)
   }, 30_000)
 
   it('runner-side failure: signature on stderr and exit 127, the command never runs', () => {
