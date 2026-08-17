@@ -137,6 +137,8 @@ export interface Win32Bindings {
   getConsoleWindow(): NativePtr
   /** Attach this process to a new console (0 on failure); the console-less-host accommodation. */
   allocConsole(): number
+  /** Attach this process to another process's console (0 on failure); the GUI-subsystem runner's parent-console attachment. */
+  attachConsole(processId: number): number
   /** ShowWindow from user32: hides the freshly allocated console window (SW_HIDE). */
   showWindow(window: NativePtr, command: number): number
 }
@@ -436,6 +438,7 @@ function bindings(): Win32Bindings {
     getStdHandle: bind(kernel32, 'GetStdHandle', PVOID, ['int']),
     getConsoleWindow: bind(kernel32, 'GetConsoleWindow', PVOID, []),
     allocConsole: bind(kernel32, 'AllocConsole', 'int', []),
+    attachConsole: bind(kernel32, 'AttachConsole', 'int', ['uint32']),
     showWindow: bind(user32, 'ShowWindow', 'int', [PVOID, 'int']),
   } as unknown as Win32Bindings
   return cached

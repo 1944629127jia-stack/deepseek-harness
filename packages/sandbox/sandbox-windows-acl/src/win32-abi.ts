@@ -27,7 +27,10 @@
  *    exit vacuously (PowerShell runs no command without a console). The only
  *    workable console-less shape is giving the host itself a console — see
  *    console.ts (`ensureHostConsole`), verified end-to-end against the
- *    packaged desktop shell.
+ *    packaged desktop shell. The packaged shell runs the runner itself as a
+ *    GUI-subsystem Electron image, which never inherits that console at
+ *    creation, so the runner attaches to the parent console explicitly
+ *    (`attachParentConsole`) before spawning the confined child.
  * @module @deepseek-ai/dsh-sandbox-windows-acl/win32-abi
  */
 
@@ -161,6 +164,10 @@ export const CREATE_SUSPENDED = 0x4
 // console it allocates for a console-less host (see console.ts).
 /** SW_HIDE: ShowWindow command hiding the window. */
 export const SW_HIDE = 0
+// wincon.h: AttachConsole selector attaching to the console of the calling
+// process's parent — the GUI-subsystem runner's route to the host console.
+/** ATTACH_PARENT_PROCESS: AttachConsole selector for the parent process's console. */
+export const ATTACH_PARENT_PROCESS = 0xFFFFFFFF
 // winbase.h lines ~497-499: GetStdHandle selectors.
 /** STD_INPUT_HANDLE: GetStdHandle selector for the standard input. */
 export const STD_INPUT_HANDLE = -10

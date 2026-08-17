@@ -9,7 +9,11 @@
  * exits vacuously without running its command (both verified end-to-end
  * against the packaged desktop shell; see win32-abi.ts). The long-lived host
  * therefore allocates ONE console for itself and hides it, so every runner
- * and confined child it ever spawns inherits a working attachment.
+ * and confined child it ever spawns inherits a working attachment. The
+ * per-command runner completes the chain from the other side: in the
+ * packaged shell it runs as a GUI-subsystem Electron image, which never
+ * inherits the host's console automatically, so it attaches to the parent
+ * console explicitly ({@link attachParentConsole}).
  * @module @deepseek-ai/dsh-sandbox-windows-acl/console
  */
 
@@ -39,4 +43,25 @@ export function ensureHostConsole(api: Win32Bindings = win32Sync()): boolean {
   const window = api.getConsoleWindow()
   if (!isNullPtr(window)) api.showWindow(window, abi.SW_HIDE) // best-effort hide; the attachment matters, not the visibility
   return true
+}
+
+/**
+ * Attach this process to its parent's console when it has none. The runner's
+ * half of the console-less-host accommodation: a console-subsystem image
+ * (plain node) inherits the host console at creation, but a GUI-subsystem
+ * image (the packaged desktop shell's Electron binary running the runner)
+ * never does — without this attachment the confined child would again face
+ * process initialization with no console to inherit and die with
+ * STATUS_DLL_INIT_FAILED. Best-effort like the host half: a false return
+ * means the parent had no console to attach to (a host that refused the
+ * accommodation), and the confined spawn keeps its pre-existing behavior.
+ * No AllocConsole fallback here — a per-command console would flash a window
+ * per command and die with the runner.
+ * @param api - the binding table (defaults to the shared real bindings).
+ * @returns true when this process owns or has attached to a console after
+ *   the call; false when there was no parent console to attach to.
+ */
+export function attachParentConsole(api: Win32Bindings = win32Sync()): boolean {
+  if (!isNullPtr(api.getConsoleWindow())) return true
+  return api.attachConsole(abi.ATTACH_PARENT_PROCESS) !== 0
 }

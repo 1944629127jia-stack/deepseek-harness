@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-17-windows-acl-console-less-host-console.md
-2026-08-17-windows-acl-console-less-host-console.md: 56240e3790cf34dabf471e797d8da300c28133bf
-2026-08-17-windows-acl-console-less-host-console.zh.md: b591046df37811dec6115e90c9d1f94ef9da166d
+2026-08-17-windows-acl-console-less-host-console.md: 5264e559eff59f604c826911f9a9b453e5a650b0
+2026-08-17-windows-acl-console-less-host-console.zh.md: 4701dbf1d3683f01bd54ad9d426d9dbaa0dcfdb5

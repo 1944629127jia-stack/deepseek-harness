@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { ensureHostConsole } from '../src/console.ts'
+import { attachParentConsole, ensureHostConsole } from '../src/console.ts'
 import type { NativePtr, Win32Bindings } from '../src/ffi.ts'
 import * as abi from '../src/win32-abi.ts'
 
@@ -53,5 +53,35 @@ describe('ensureHostConsole', () => {
       allocConsole: vi.fn(() => 0),
     } as unknown as Win32Bindings
     expect(ensureHostConsole(api)).toBe(false)
+  })
+})
+
+describe('attachParentConsole', () => {
+  it('leaves a process that already owns a console untouched', () => {
+    const attachConsole = vi.fn(() => 1)
+    const api = {
+      getConsoleWindow: vi.fn(() => 999n),
+      attachConsole,
+    } as unknown as Win32Bindings
+    expect(attachParentConsole(api)).toBe(true)
+    expect(attachConsole).not.toHaveBeenCalled()
+  })
+
+  it('attaches a console-less process to the parent console', () => {
+    const attachConsole = vi.fn(() => 1)
+    const api = {
+      getConsoleWindow: vi.fn(() => null),
+      attachConsole,
+    } as unknown as Win32Bindings
+    expect(attachParentConsole(api)).toBe(true)
+    expect(attachConsole).toHaveBeenCalledExactlyOnceWith(abi.ATTACH_PARENT_PROCESS)
+  })
+
+  it('reports false when there is no parent console to attach to', () => {
+    const api = {
+      getConsoleWindow: vi.fn(() => null),
+      attachConsole: vi.fn(() => 0),
+    } as unknown as Win32Bindings
+    expect(attachParentConsole(api)).toBe(false)
   })
 })
