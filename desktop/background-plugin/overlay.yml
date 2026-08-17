@@ -1,0 +1,6 @@
+# Patch overlay composing the custom-background plugin into the booted
+# profile. Passed to the CLI as `dsh web --patch <this file>` by the desktop
+# shell; the plugin package resolves from the profile's node_modules.
+- insert:
+    - id: ui-background
+      name: dsh-ui-background

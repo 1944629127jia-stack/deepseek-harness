@@ -1,0 +1,54 @@
+/* Background preference row: title + preview chip + upload/clear actions. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.title {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview {
+  width: 56px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background-position: center;
+  background-size: cover;
+  flex: none;
+}
+
+.button {
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-border-l2);
+  font: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  background: none;
+  border-radius: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.error {
+  color: var(--dsw-alias-text-error, #d4380d);
+  font-size: 12px;
+  line-height: 18px;
+}

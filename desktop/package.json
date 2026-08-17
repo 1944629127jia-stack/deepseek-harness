@@ -1,0 +1,53 @@
+{
+  "name": "dsh-desktop-shell",
+  "private": true,
+  "version": "0.1.0-rc.5",
+  "description": "Experimental Electron shell for DeepSeek Harness: spawns `dsh web` on a loopback port and loads the printed URL.",
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "icons": "node scripts/make-icons.mjs",
+    "stage": "node scripts/stage-runtime.mjs",
+    "smoke": "node scripts/smoke-runtime.mjs",
+    "dist": "node scripts/stage-runtime.mjs && node scripts/smoke-runtime.mjs && electron-builder"
+  },
+  "build": {
+    "appId": "com.deepseek.harness.desktop",
+    "productName": "DeepSeek Harness",
+    "files": [
+      "main.mjs",
+      "preload.cjs",
+      "package.json",
+      "build/**"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime",
+        "to": "runtime"
+      },
+      {
+        "from": "runtime/node_modules",
+        "to": "runtime/node_modules"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "DeepSeek Harness"
+    },
+    "directories": {
+      "output": "release"
+    }
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.12"
+  }
+}
