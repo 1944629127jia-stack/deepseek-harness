@@ -100,11 +100,13 @@ export function makeWellKnownSid(api: Win32Bindings, type: number): NativePtr {
  * default DACL verbatim, which names no restricting SID: a new anonymous pipe
  * (child stdio) therefore fails the write pass-2 check at creation
  * (ERROR_ACCESS_DENIED; Node surfaces it as spawn EPERM), breaking every
- * piped-stdio grandchild spawn. The merged ACE names a RESTRICTING SID (the
- * write SID under workspace-write, Everyone under read-only), so each new
- * object's own DACL passes pass-2 while object creation itself stays gated by
- * the parent container's DACL (files outside the granted trees remain
- * uncreatable). Fails closed: any Win32 failure throws before the spawn.
+ * piped-stdio grandchild spawn. The merged ACE names a RESTRICTING SID, so
+ * each new object's own DACL passes pass-2 while object creation itself
+ * stays gated by the parent container's DACL (files outside the granted
+ * trees remain uncreatable). The caller merges the capability SID (pass-2)
+ * AND Everyone (pass-1: capability SIDs are not token groups, and host
+ * default DACLs launched from Explorer grant the creator nothing) — see
+ * index.ts. Fails closed: any Win32 failure throws before the spawn.
  * @param api - the binding table.
  * @param token - the restricted token to adjust (requires TOKEN_ADJUST_DEFAULT).
  * @param sidPtr - the restricting SID whose full-access ACE joins the default DACL.

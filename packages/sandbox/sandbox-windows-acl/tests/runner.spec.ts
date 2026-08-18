@@ -326,6 +326,26 @@ describe.skipIf(!isWin32 || !pwshAvailable())('windows-acl runner', () => {
     }
   }, 30_000)
 
+  it('grants Everyone in the confined token default DACL (pass-1 coverage on Explorer-launched hosts)', () => {
+    // A capability SID is a restricting SID, NOT a token group, so it cannot
+    // satisfy the pass-1 (normal DACL) check for new-object creation. On
+    // terminal-launched hosts the inherited default DACL covers pass-1 (LA
+    // GA), but an Explorer-launched host's default DACL grants the creator
+    // nothing write-level (logon SID GX|GR) — anonymous-pipe creation inside
+    // the confined child then dies with ERROR_ACCESS_DENIED (the packaged
+    // desktop shell's piped-grandchild MSB3883). Everyone is both an enabled
+    // group and a restricting SID, so its ACE must be present in BOTH modes.
+    const fixture = fileURLToPath(new URL('./fixtures/print-default-dacl.cjs', import.meta.url))
+    for (const mode of ['workspace-write', 'read-only'] as const) {
+      const result = runRunner([
+        '--workspace', writableDir, '--temp', isolatedTemp, '--mode', mode,
+        '--', process.execPath, fixture,
+      ])
+      expect(result.status, `stderr: ${result.stderr}`).toBe(0)
+      expect(result.stdout, `mode: ${mode}`).toContain('(A;OICI;FA;;;WD)')
+    }
+  }, 30_000)
+
   it('mode-downgrade leak regression: a STANDING workspace grant is inert under read-only and effective again on re-upgrade', () => {
     // The reported defect: a session that materialized its grant in
     // workspace-write keeps the ACE standing for the server lifetime. After

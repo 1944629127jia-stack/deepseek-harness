@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-18-windows-acl-default-dacl-pass1.md
+2026-08-18-windows-acl-default-dacl-pass1.md: fcef312e574b9c72636babb3f8adfc7d8cbccce1
+2026-08-18-windows-acl-default-dacl-pass1.zh.md: ffb7af2d31cbe72565aeb7e77d60018e8d336f4d

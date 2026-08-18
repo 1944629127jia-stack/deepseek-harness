@@ -298,7 +298,22 @@ export class AclSandbox {
       // DACL passes pass-2. Choosing the temp SID prevents default-DACL
       // objects in one session's temp tree from acquiring the shared
       // workspace capability.
+      //
+      // The capability ACE alone is not enough: capability SIDs are
+      // restricting SIDs, NOT token groups, so they can never satisfy the
+      // pass-1 (normal DACL) check — that still depends on the HOST token's
+      // inherited default DACL granting the creator write. A terminal-
+      // launched host's default DACL does (LA GA), but an Explorer-launched
+      // host's carries only the logon SID with GX|GR — and there anonymous
+      // pipe creation inside the confined child dies with
+      // ERROR_ACCESS_DENIED (the packaged desktop shell's piped-grandchild
+      // MSB3883). Everyone is BOTH an enabled group and a restricting SID in
+      // every mode, so its ACE satisfies pass-1 and pass-2 on every host
+      // ancestry.
       setTokenDefaultDaclGrant(api, restrictedToken, this.tempWriteSidPtr ?? this.writeSidPtr ?? worldSid)
+      if (this.tempWriteSidPtr !== undefined || this.writeSidPtr !== undefined) {
+        setTokenDefaultDaclGrant(api, restrictedToken, worldSid)
+      }
       if (api.closeHandle(currentToken) === 0) throwLastError(api, 'CloseHandle', 'current process token')
       currentTokenOpen = false
       this.api = api
