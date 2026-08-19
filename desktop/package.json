@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop-shell",
   "private": true,
-  "version": "0.1.0-rc.5",
+  "version": "0.1.0-rc.7",
   "description": "Experimental Electron shell for DeepSeek Harness: spawns `dsh web` on a loopback port and loads the printed URL.",
   "type": "module",
   "main": "main.mjs",
